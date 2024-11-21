@@ -74,13 +74,77 @@ def scrape_bio_followers_mutuals(handle):
     }
 
 
-# Function to read handles from CSV
+# def scrape_bio_followers_mutuals(handle):
+#     # Use the search function to open the profile
+#     search_and_open_profile(handle)
+
+#     time.sleep(3)  # Wait for the profile page to load
+
+#     # Scrape bio
+#     try:
+#         bio = driver.find_element(
+#             By.XPATH,
+#             "//span[contains(@class, '_ap3a') and contains(@class, '_aaco') and contains(@class, '_aacu') and contains(@class, '_aacx') and contains(@class, '_aad7') and contains(@class, '_aade')]",
+#         ).text
+#     except:
+#         bio = "Bio not found"
+
+#     # Scrape followers count
+#     try:
+#         followers = driver.find_element(
+#             By.XPATH, "//a[contains(@href,'followers')]/span"
+#         ).get_attribute("title")
+#     except:
+#         followers = "Followers not found"
+
+#     # Scrape mutual followers
+#     try:
+#         mutuals_element = driver.find_element(
+#             By.XPATH,
+#             "//span[contains(@class, 'x1lliihq') and contains(text(), 'Followed by')]",
+#         )
+#         mutuals_text = mutuals_element.text
+#         if "+" in mutuals_text:
+#             handles_part = mutuals_text.split("Followed by ")[1].split(" +")[0]
+#             additional_count = int(mutuals_text.split("+")[1].split()[0])
+#             mutual_handles = handles_part + f" + {additional_count} more"
+#             mutual_count = handles_part.count(",") + 1 + additional_count
+#         else:
+#             mutual_handles = mutuals_text.split("Followed by ")[1]
+#             mutual_count = mutual_handles.count(",") + 1
+#     except:
+#         mutual_handles = "No mutuals found"
+#         mutual_count = 0
+
+#     return {
+#         "Handle": handle,
+#         "Bio": bio,
+#         "Followers Count": followers,
+#         "Mutuals": mutual_handles,
+#         "Mutuals Count": mutual_count,
+#     }
+
+
 def read_handles_from_csv(filename):
-    with open(filename, "r") as file:
-        csv_reader = csv.reader(file)
-        return [
-            row[0] for row in csv_reader
-        ]  # Assumes the handle is in the first column
+    print(f"Reading handles from file: {filename}")
+    handles = []
+    try:
+        with open(filename, mode="r") as file:
+            csv_reader = csv.reader(file)
+            for row_number, row in enumerate(csv_reader):
+                # Skip empty rows and ensure the first column is treated as a handle
+                if row and row[0].strip():
+                    # Skip the header row (row 0) if it contains 'Handles' or 'Handle'
+                    if row_number == 0 and row[0].lower() in ["handles", "handle"]:
+                        continue
+                    handles.append(row[0].strip())
+        if not handles:
+            print("No valid handles found in the file. Please check the file format.")
+            exit(1)
+        return handles
+    except Exception as e:
+        print(f"Error reading file {filename}: {e}")
+        exit(1)
 
 
 # Function to write scraped data to a CSV file
@@ -167,6 +231,52 @@ def scrape_multiple_profiles(
 
     write_data_to_csv(scraped_data, output_csv)
     print(f"Scraping completed. Data saved to {output_csv}")
+
+
+def search_and_open_profile(handle):
+    # Open Instagram's homepage
+    search_url = "https://www.instagram.com/"
+    print(f"Opening Instagram homepage: {search_url}")
+    driver.get(search_url)
+    time.sleep(random.uniform(3, 6))  # Wait for the page to load
+
+    try:
+        print("Attempting to locate the search icon...")
+        # Locate and click the search icon
+        search_icon = driver.find_element(By.XPATH, "//svg[@aria-label='Search']")
+        search_icon.click()
+        print("Search icon clicked successfully.")
+        time.sleep(random.uniform(2, 4))  # Wait for search input to appear
+
+        print("Attempting to locate the search input field...")
+        # Wait for the search bar to appear
+        search_input = driver.find_element(By.XPATH, "//input[@placeholder='Search']")
+        print("Search input field located successfully.")
+
+        # Simulate typing the handle character by character
+        print(f"Typing handle '{handle}' into the search field...")
+        for char in handle:
+            search_input.send_keys(char)
+            time.sleep(random.uniform(0.1, 0.3))  # Mimic human typing speed
+
+        time.sleep(random.uniform(3, 5))  # Wait for the search results to load
+
+        print("Attempting to locate the first search result...")
+        # Locate the first search result containing the exact handle text
+        first_result = driver.find_element(
+            By.XPATH,
+            f"//span[text()='{handle}']/ancestor::div[contains(@class, 'x9f619')]",
+        )
+        print(f"First search result for '{handle}' located. Clicking the result...")
+        first_result.click()
+
+        time.sleep(random.uniform(2, 4))  # Wait for the profile page to load
+        print(f"Successfully navigated to profile page for '{handle}'.")
+
+    except Exception as e:
+        print(f"Error searching for '{handle}': {e}")
+        # Optionally, take a screenshot for further debugging
+        driver.save_screenshot("debug_screenshot.png")
 
 
 # Main function to handle command-line arguments and initiate scraping
